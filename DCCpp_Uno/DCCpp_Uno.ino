@@ -158,6 +158,7 @@ DCC++ BASE STATION in split into multiple modules, each with its own header file
 #include "Sensor.h"
 #include "SerialCommand.h"
 #include "Accessories.h"
+#include "EthernetPort.h"
 #include <EEPROM.h>
 
 // NEXT DECLARE GLOBAL OBJECTS TO PROCESS AND STORE DCC PACKETS AND MONITOR TRACK CURRENTS.
@@ -168,6 +169,11 @@ volatile RegisterList progRegs(2);                     // create a shorter list 
 
 CurrentMonitor mainMonitor(CURRENT_MONITOR_PIN_MAIN,"<p2>");  // create monitor for current on Main Track
 CurrentMonitor progMonitor(CURRENT_MONITOR_PIN_PROG,"<p3>");  // create monitor for current on Program Track
+
+#ifdef USE_ETHERNET
+EthernetPort ethernetPort;
+boolean use_ethernet = true;
+#endif
 
 // OPTIONALLY CREATE A LIST OF SENSORS TO TRACK TRAIN MOVEMENTS (see Sensors.cpp for more info)
 
@@ -182,6 +188,10 @@ Turnout turnouts[]={Turnout(1,1,0),Turnout(2,1,1),Turnout(3,1,2),Turnout(50,1,3)
 ///////////////////////////////////////////////////////////////////////////////
 
 void loop(){
+
+  if (use_ethernet) {
+    ethernetPort.process();
+  }
   
   SerialCommand::process();              // check for, and process, and new serial commands
   
@@ -200,6 +210,12 @@ void loop(){
 ///////////////////////////////////////////////////////////////////////////////
 
 void setup(){  
+
+#ifdef USE_ETHERNET
+  if (USE_ETHERNET) {
+      ethernetPort.initialize();
+  }
+#endif
 
   Serial.begin(115200);            // configure serial interface
   Serial.flush();

@@ -9,6 +9,7 @@ Part of DCC++ BASE STATION for the Arduino Uno
 
 #include "DCCpp_Uno.h"
 #include "PacketRegister.h"
+#include "Utils.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -122,11 +123,20 @@ void RegisterList::setThrottle(char *s) volatile{
        
   loadPacket(nReg,b,nB,0,1);
   
-  Serial.print("<T");
-  Serial.print(nReg); Serial.print(" ");
-  Serial.print(tSpeed); Serial.print(" ");
-  Serial.print(tDirection);
-  Serial.print(">");
+  reply_buffer = String("<T");
+  reply_buffer += nReg;
+  reply_buffer += " ";
+  reply_buffer += tSpeed;
+  reply_buffer += " ";
+  reply_buffer += tDirection;
+  reply_buffer += ">";
+  sendReply(reply_buffer);
+
+  //Serial.print("<T");
+  //Serial.print(nReg); Serial.print(" ");
+  //Serial.print(tSpeed); Serial.print(" ");
+  //Serial.print(tDirection);
+  //Serial.print(">");
   
   speedTable[nReg]=tDirection==1?tSpeed:-tSpeed;
     
@@ -192,7 +202,9 @@ void RegisterList::writeTextPacket(char *s) volatile{
   nBytes=sscanf(s,"%d %x %x %x %x %x",&nReg,b,b+1,b+2,b+3,b+4)-1;
   
   if(nBytes<2 || nBytes>5){    // invalid valid packet
-    Serial.print("<mInvalid Packet>");
+    reply_buffer = String("<mInvalid Packet>");
+    sendReply(reply_buffer);
+    //Serial.print("<mInvalid Packet>");
     return;
   }
          
@@ -248,15 +260,25 @@ void RegisterList::readCV(char *s) volatile{
   if(c/ACK_CURRENT_COUNT<ACK_CURRENT_MIN)    // verify unsuccessful
     bValue=-1;
 
-  Serial.print("<r");
-  Serial.print(callBack);
-  Serial.print("|");
-  Serial.print(callBackSub);
-  Serial.print("|");
-  Serial.print(cv+1);
-  Serial.print(" ");
-  Serial.print(bValue);
-  Serial.print(">");
+  reply_buffer = String("<r");
+  reply_buffer += callBack;
+  reply_buffer += "|";
+  reply_buffer += callBackSub;
+  reply_buffer += "|";
+  reply_buffer += cv+1;
+  reply_buffer += " ";
+  reply_buffer += bValue;
+  reply_buffer += ">";
+  sendReply(reply_buffer);
+  //Serial.print("<r");
+  //Serial.print(callBack);
+  //Serial.print("|");
+  //Serial.print(callBackSub);
+  //Serial.print("|");
+  //Serial.print(cv+1);
+  //Serial.print(" ");
+  //Serial.print(bValue);
+  //Serial.print(">");
         
 } // RegisterList::readCV()
 
@@ -295,15 +317,25 @@ void RegisterList::writeCVByte(char *s) volatile{
   if(c/ACK_CURRENT_COUNT<ACK_CURRENT_MIN)    // verify unsuccessful
     bValue=-1;
 
-  Serial.print("<r");
-  Serial.print(callBack);
-  Serial.print("|");
-  Serial.print(callBackSub);
-  Serial.print("|");
-  Serial.print(cv+1);
-  Serial.print(" ");
-  Serial.print(bValue);
-  Serial.print(">");
+  reply_buffer = String("<r");
+  reply_buffer += callBack;
+  reply_buffer += "|";
+  reply_buffer += callBackSub;
+  reply_buffer += "|";
+  reply_buffer += cv+1;
+  reply_buffer += " ";
+  reply_buffer += bValue;
+  reply_buffer += ">";
+  sendReply(reply_buffer);
+  //Serial.print("<r");
+  //Serial.print(callBack);
+  //Serial.print("|");
+  //Serial.print(callBackSub);
+  //Serial.print("|");
+  //Serial.print(cv+1);
+  //Serial.print(" ");
+  //Serial.print(bValue);
+  //Serial.print(">");
 
 } // RegisterList::writeCVByte()
   
@@ -345,17 +377,27 @@ void RegisterList::writeCVBit(char *s) volatile{
   if(c/ACK_CURRENT_COUNT<ACK_CURRENT_MIN)    // verify unsuccessful
     bValue=-1;
 
-  Serial.print("<r");
-  Serial.print(callBack);
-  Serial.print("|");
-  Serial.print(callBackSub);
-  Serial.print("|");
-  Serial.print(cv+1);
-  Serial.print(" ");
-  Serial.print(bNum);
-  Serial.print(" ");
-  Serial.print(bValue);
-  Serial.print(">");
+  reply_buffer = String("<r");
+  reply_buffer += callBack;
+  reply_buffer += "|";
+  reply_buffer += callBackSub;
+  reply_buffer += "|";
+  reply_buffer += cv+1;
+  reply_buffer += " ";
+  reply_buffer += bValue;
+  reply_buffer += ">";
+  sendReply(reply_buffer);
+  //Serial.print("<r");
+  //Serial.print(callBack);
+  //Serial.print("|");
+  //Serial.print(callBackSub);
+  //Serial.print("|");
+  //Serial.print(cv+1);
+  //Serial.print(" ");
+  //Serial.print(bNum);
+  //Serial.print(" ");
+  //Serial.print(bValue);
+  //Serial.print(">");
 
 } // RegisterList::writeCVBit()
   
@@ -416,17 +458,27 @@ void RegisterList::writeCVBitMain(char *s) volatile{
 ///////////////////////////////////////////////////////////////////////////////
 
 void RegisterList::printPacket(int nReg, byte *b, int nBytes, int nRepeat) volatile {
-  
-  Serial.print("<*");
-  Serial.print(nReg);
-  Serial.print(":");
-  for(int i=0;i<nBytes;i++){
-    Serial.print(" ");
-    Serial.print(b[i],HEX);
+  reply_buffer = String("<*");
+  reply_buffer += nReg;
+  reply_buffer += ":";
+  for (int i=0; i<nBytes;i++) {
+    reply_buffer += " " + b[i]; // TODO: b[i] should be hex
   }
-  Serial.print(" / ");
-  Serial.print(nRepeat);
-  Serial.print(">");
+  reply_buffer += " / ";
+  reply_buffer += nRepeat;
+  reply_buffer += ">";
+  sendReply(reply_buffer);
+
+  //Serial.print("<*");
+  //Serial.print(nReg);
+  //Serial.print(":");
+  //for(int i=0;i<nBytes;i++){
+  //Serial.print(" ");
+  //Serial.print(b[i],HEX);
+  //}
+  //Serial.print(" / ");
+  //Serial.print(nRepeat);
+  //Serial.print(">");
 } // RegisterList::printPacket()
 
 ///////////////////////////////////////////////////////////////////////////////

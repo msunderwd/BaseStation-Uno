@@ -41,7 +41,9 @@ the directions of any Turnouts being monitored or controlled by a separate inter
 
 #include "Accessories.h"
 #include "SerialCommand.h"
+#include "EthernetPort.h"
 #include "DCCpp_Uno.h"
+#include "Utils.h"
 #include <EEPROM.h>
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,12 +68,18 @@ void Turnout::activate(int s){
   sprintf(c,"a %d %d %d",address,subAddress,tStatus);
   SerialCommand::parse(c);
   EEPROM.write(EE_TURNOUT+num,tStatus);
-  Serial.print("<H");
-  Serial.print(id);
+  reply_buffer = String("<H");
+  reply_buffer += id;
+  //Serial.print("<H");
+  //Serial.print(id);
   if(tStatus==0)
-    Serial.print(" 0>");
+    //Serial.print(" 0>");
+    reply_buffer += " 0>";
   else
-    Serial.print(" 1>"); 
+    //Serial.print(" 1>"); 
+    reply_buffer += " 1>";
+
+  sendReply(reply_buffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

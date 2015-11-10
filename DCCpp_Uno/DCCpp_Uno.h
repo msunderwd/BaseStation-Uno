@@ -12,6 +12,10 @@ Part of DCC++ BASE STATION for the Arduino Uno
 
 #define  BASE_STATION_VERSION  "UNO_1.0"
 
+// Enable/Disable Features
+
+#define USE_ETHERNET 1
+
 // Define the Arduino Pins that control various functions
 
 #define SIGNAL_ENABLE_PIN_MAIN 3

@@ -42,6 +42,9 @@ No message is generated when a Sensor Pin transitions back to a HIGH state from 
 
 #include "DCCpp_Uno.h"
 #include "Sensor.h"
+#include "Utils.h"
+
+///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
   
@@ -62,9 +65,13 @@ void Sensor::check(){
 
   if(!active && signal<0.5){
     active=true;
-    Serial.print("<Q");
-    Serial.print(snum);
-    Serial.print(">");
+    reply_buffer = String("<Q");
+    reply_buffer += snum;
+    reply_buffer += ">";
+    sendReply(reply_buffer);
+    //Serial.print("<Q");
+    //Serial.print(snum);
+    //Serial.print(">");
   } else if(active && signal>0.99){
     active=false;
   }
