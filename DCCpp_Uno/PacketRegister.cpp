@@ -53,6 +53,9 @@ void RegisterList::loadPacket(int nReg, byte *b, int nBytes, int nRepeat, int pr
   Register *r=regMap[nReg];           // set Register to be updated
   Packet *p=r->updatePacket;          // set Packet in the Register to be updated
   byte *buf=p->buf;                   // set byte buffer in the Packet to be updated
+
+  r->cab[0] = b[0];                   // Copy the first two bytes (address) into the register (High)
+  r->cab[1] = b[1];                   // (low)
           
   b[nBytes]=b[0];                        // copy first byte into what will become the checksum byte  
   for(int i=1;i<nBytes;i++)              // XOR remaining bytes into checksum byte
@@ -97,6 +100,30 @@ void RegisterList::loadPacket(int nReg, byte *b, int nBytes, int nRepeat, int pr
 } // RegisterList::loadPacket
 
 ///////////////////////////////////////////////////////////////////////////////
+
+int RegisterList::getRegisterByAddr(int cab) volatile {
+  byte bh, bl;
+
+  if(cab>127)
+    bh=highByte(cab) | 0xC0;      // convert train number into a two-byte address
+  bl=lowByte(cab);
+  for (int i = 0; i < maxNumRegs; i++) {
+    if (regMap[i] != NULL) {
+      if ((regMap[i]->cab[0] == bh) && (regMap[i]->cab[1] == bl)) {
+	return(i);
+      }
+    }
+  }
+  return(-1); // Not found.
+}
+
+int RegisterList::getEmptyRegister(void) volatile {
+  for (int i = 0; i < maxNumRegs; i++) {
+    if (regMap[i] == NULL) {
+      return(i);
+    }
+  }
+}
 
 void RegisterList::setThrottle(char *s) volatile{
   byte b[5];                      // save space for checksum byte

@@ -23,6 +23,7 @@ struct Packet{
 }; // Packet
 
 struct Register{
+  byte cab[2];
   Packet packet[2];
   Packet *activePacket;
   Packet *updatePacket;
@@ -55,6 +56,8 @@ struct RegisterList{
   void writeCVByteMain(char *) volatile;
   void writeCVBitMain(char *s) volatile;  
   void printPacket(int, byte *, int, int) volatile;
+  int getRegisterByAddr(int) volatile;
+  int getEmptyRegister(void) volatile;
 };
 
 #endif
