@@ -189,10 +189,10 @@ Turnout turnouts[]={Turnout(1,1,0),Turnout(2,1,1),Turnout(3,1,2),Turnout(50,1,3)
 
 void loop(){
 
-  if (use_ethernet) {
-    ethernetPort.process();
-  }
-  
+#if (USE_ETHERNET > 0)
+  ethernetPort.process();
+#endif
+
   SerialCommand::process();              // check for, and process, and new serial commands
   
   if(CurrentMonitor::checkTime()){      // if sufficient time has elapsed since last update, check current draw on Main and Program Tracks 
@@ -211,11 +211,6 @@ void loop(){
 
 void setup(){  
 
-#ifdef USE_ETHERNET
-  if (USE_ETHERNET) {
-      ethernetPort.initialize();
-  }
-#endif
 
   Serial.begin(115200);            // configure serial interface
   Serial.flush();
@@ -296,6 +291,10 @@ void setup(){
   progRegs.loadPacket(1,RegisterList::idlePacket,2,0);    // load idle packet into register 1    
       
   bitSet(TIMSK0,OCIE0B);    // enable interrupt vector for Timer 0 Output Compare B Match (OCR0B)
+
+#if (USE_ETHERNET > 0)
+  ethernetPort.initialize();
+#endif
 
 } // setup
 
