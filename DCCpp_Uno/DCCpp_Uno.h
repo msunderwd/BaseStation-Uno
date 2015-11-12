@@ -16,8 +16,9 @@ Part of DCC++ BASE STATION for the Arduino Uno
 
 #define USE_ETHERNET 1
 #define USE_DHCP 1
-#define USE_BONJOUR 1
+#define USE_BONJOUR 0
 #define DHCP_POLL_INTERVAL 10
+#define USE_SERIAL_DEBUG 1
 
 // Define the Arduino Pins that control various functions
 

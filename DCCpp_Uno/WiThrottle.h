@@ -44,10 +44,10 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 #ifndef WiThrottle_h
 #define WiThrottle_h
 
-//#include <Dhcp.h>
-#include <Ethernet.h>
-#include <EthernetClient.h>
-#include <EthernetUdp.h>
+//#include <DhcpV2_0.h>
+#include <EthernetV2_0.h>
+#include <EthernetClientV2_0.h>
+#include <EthernetUdpV2_0.h>
 #include "SerialCommand.h"
 #include "DCCpp_Uno.h" // Do we really need this here?
 #include "Accessories.h" // Do we really need this here?

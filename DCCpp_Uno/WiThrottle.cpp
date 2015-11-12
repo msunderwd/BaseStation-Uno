@@ -10,7 +10,9 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 #include "WiThrottle.h"
 #include "PacketRegister.h"
 #include <SPI.h>
-#include <EthernetBonjour.h>
+#if (USE_BONJOUR)
+#include <EthernetBonjourV2_0.h>
+#endif
 
 // TODO: Use real MAC Address
 // Note: mac[] defined in EthernetPort.cpp
@@ -172,9 +174,11 @@ bool WiThrottle::parse(WiThrottleClient *c, String& s) {
 }
 
 void WiThrottle::startEKG(void) {
+  // This needs to start a timer somehow.
 }
 
 void WiThrottle::stopEKG(void) {
+  // This needs to stop the timer somehow.
 }
 
 void WiThrottle::handleTrackPowerMsg(String s) {

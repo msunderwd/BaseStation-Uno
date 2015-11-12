@@ -17,7 +17,7 @@ Part of DCC++ BASE STATION for the Arduino Uno
 #include "SerialCommand.h"
 #include "DCCpp_Uno.h"
 #include "Accessories.h"
-
+#include "Utils.h"
 extern int __heap_start, *__brkval;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -55,6 +55,8 @@ void SerialCommand::process(){
 ///////////////////////////////////////////////////////////////////////////////
 
 void SerialCommand::parse(char *com){
+
+  Serial.println("parsing: " + String(com));
   
   switch(com[0]){
 
@@ -247,7 +249,9 @@ void SerialCommand::parse(char *com){
  */    
      digitalWrite(SIGNAL_ENABLE_PIN_PROG,HIGH);
      digitalWrite(SIGNAL_ENABLE_PIN_MAIN,HIGH);
-     Serial.print("<p1>");
+     reply_buffer = String("<p1>");
+     sendReply(reply_buffer);
+     //Serial.print("<p1>");
      break;
           
 /***** TURN OFF POWER FROM MOTOR SHIELD TO TRACKS  ****/    
@@ -260,7 +264,8 @@ void SerialCommand::parse(char *com){
  */
      digitalWrite(SIGNAL_ENABLE_PIN_PROG,LOW);
      digitalWrite(SIGNAL_ENABLE_PIN_MAIN,LOW);
-     Serial.print("<p0>");
+     sendReply(String("<p0>"));
+     //Serial.print("<p0>");
      break;
 
 /***** READ MAIN OPERATIONS TRACK CURRENT  ****/    
@@ -272,9 +277,13 @@ void SerialCommand::parse(char *com){
  *    returns: <a CURRENT> 
  *    where CURRENT = 0-1024, based on exponentially-smoothed weighting scheme
  */
-      Serial.print("<a");
-      Serial.print(int(mMonitor->current));
-      Serial.print(">");
+      reply_buffer = String("<a");
+      reply_buffer += int(mMonitor->current);
+      reply_buffer += ">";
+      sendReply(reply_buffer);
+      //Serial.print("<a");
+      //Serial.print(int(mMonitor->current));
+      //Serial.print(">");
       break;
 
 /***** READ STATUS OF DCC++ BASE STATION  ****/    
@@ -287,38 +296,63 @@ void SerialCommand::parse(char *com){
  *    returns: series of status messages that can be read by an interface to determine status of DCC++ Base Station and important settings
  */
       if(digitalRead(SIGNAL_ENABLE_PIN_PROG)==LOW)      // could check either PROG or MAIN
-        Serial.print("<p0>");
+	sendReply("<p0>");
+      //Serial.print("<p0>");
       else
-        Serial.print("<p1>");
+	sendReply("<p1>");
+      //Serial.print("<p1>");
 
       for(int i=1;i<=MAX_MAIN_REGISTERS;i++){
         if(mRegs->speedTable[i]==0)
           continue;
-        Serial.print("<T");
-        Serial.print(i); Serial.print(" ");
+	reply_buffer = String("<T");
+        //Serial.print("<T");
+	reply_buffer += i;
+	reply_buffer += " ";
+        //Serial.print(i); Serial.print(" ");
         if(mRegs->speedTable[i]>0){
-          Serial.print(mRegs->speedTable[i]);
-          Serial.print(" 1>");
+	  reply_buffer += mRegs->speedTable[i];
+	  reply_buffer += " 1>";
+          //Serial.print(mRegs->speedTable[i]);
+          //Serial.print(" 1>");
         } else{
-          Serial.print(-mRegs->speedTable[i]);
-          Serial.print(" 0>");
-        }          
+	  reply_buffer += -mRegs->speedTable[i];
+	  reply_buffer += " 0>";
+          //Serial.print(-mRegs->speedTable[i]);
+          //Serial.print(" 0>");
+        }
+	sendReply(reply_buffer);
       }
-      Serial.print("<iDCC++ BASE STATION v");
-      Serial.print(BASE_STATION_VERSION);
-      Serial.print(": BUILD ");
-      Serial.print(__DATE__);
-      Serial.print(" ");
-      Serial.print(__TIME__);
-      Serial.print(">");
-            
+      
+      reply_buffer = String("<iDCC++BASE STATION v");
+      reply_buffer += BASE_STATION_VERSION;
+      reply_buffer += ": BUILD ";
+      reply_buffer += __DATE__;
+      reply_buffer += " ";
+      reply_buffer += __TIME__;
+      reply_buffer += ">";
+      //Serial.print("<iDCC++ BASE STATION v");
+      //Serial.print(BASE_STATION_VERSION);
+      //Serial.print(": BUILD ");
+      //Serial.print(__DATE__);
+      //Serial.print(" ");
+      //Serial.print(__TIME__);
+      //Serial.print(">");
+      sendReply(reply_buffer);
+      
+      
       for(int i=0;i<Turnout::nTurnouts;i++){
-        Serial.print("<H");
-        Serial.print(turnouts[i].id);
+	reply_buffer = String("<H");
+	reply_buffer += turnouts[i].id;
+        //Serial.print("<H");
+        //Serial.print(turnouts[i].id);
         if(turnouts[i].tStatus==0)
-          Serial.print(" 0>");
+          //Serial.print(" 0>");
+	  reply_buffer += " 0>";
         else
-          Serial.print(" 1>");
+          //Serial.print(" 1>");
+	  reply_buffer += " 1>";
+	sendReply(reply_buffer);
       }
                   
       break;
@@ -330,7 +364,8 @@ void SerialCommand::parse(char *com){
  *    simply prints a carriage return - useful when interacting with Ardiuno through serial monitor window
  *    returns: a carriage return
 */
-      Serial.println("");
+      //Serial.println("");
+      sendReply("");
       break;  
 
 ///          

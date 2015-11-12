@@ -133,8 +133,12 @@ void RegisterList::setThrottle(char *s) volatile{
   int tDirection;
   byte nB=0;
   
-  if(sscanf(s,"%d %d %d %d",&nReg,&cab,&tSpeed,&tDirection)!=4)
+  Serial.println("Throttle Parse" + String(s));
+
+  if(sscanf(s,"%d %d %d %d",&nReg,&cab,&tSpeed,&tDirection)!=4) {
+    Serial.println("Bad format.");
     return;
+  }
 
   if(cab>127)
     b[nB++]=highByte(cab) | 0xC0;      // convert train number into a two-byte address

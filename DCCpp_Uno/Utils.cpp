@@ -13,6 +13,7 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 
 
 String reply_buffer;
+
 extern bool use_ethernet;
 #ifdef USE_ETHERNET
 extern EthernetPort ethernetPort;
