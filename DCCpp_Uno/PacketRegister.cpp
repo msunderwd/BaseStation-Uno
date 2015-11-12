@@ -101,6 +101,11 @@ void RegisterList::loadPacket(int nReg, byte *b, int nBytes, int nRepeat, int pr
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
+// Find a register that has a message for the given cab address.
+// This helps clients re-use the same register.
+//
+// Returns the register number, or (-1) if not found.
 int RegisterList::getRegisterByAddr(int cab) volatile {
   byte bh, bl;
 
@@ -117,12 +122,16 @@ int RegisterList::getRegisterByAddr(int cab) volatile {
   return(-1); // Not found.
 }
 
+// Get the first available empty register.
+//
+// Returns the register number, or (-1) if not found.
 int RegisterList::getEmptyRegister(void) volatile {
   for (int i = 0; i < maxNumRegs; i++) {
     if (regMap[i] == NULL) {
       return(i);
     }
   }
+  return(-1);
 }
 
 void RegisterList::setThrottle(char *s) volatile{

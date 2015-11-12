@@ -44,7 +44,33 @@ No message is generated when a Sensor Pin transitions back to a HIGH state from 
 #include "Sensor.h"
 #include "Utils.h"
 
+extern Sensor sensors[];
+
 ///////////////////////////////////////////////////////////////////////////////
+
+// Get a pointer to a specific Sensor object.
+Sensor *Sensor::get(int n) {
+  for (int i = 0; i < Sensor::nSensors; i++) {
+    if (sensors[i].snum == n) {
+      return(sensors+i);
+    }
+  }
+  return(NULL);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+// Parse a Query Sensor State message.
+void Sensor::parse(char *s) {
+  int n;
+  Sensor *a;
+  if (sscanf(s, "%d", &n) == 1) {
+    a = get(n);
+    if (a != NULL) {
+      a->check();
+    }
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
   
@@ -67,11 +93,17 @@ void Sensor::check(){
     active=true;
     reply_buffer = String("<Q");
     reply_buffer += snum;
-    reply_buffer += ">";
+    if (active)
+      reply_buffer += " 1>";
+    else
+      reply_buffer += " 0>";
     sendReply(reply_buffer);
     //Serial.print("<Q");
     //Serial.print(snum);
-    //Serial.print(">");
+    //if (active)
+    //  Serial.print(" 1>");
+    //else
+    //  Serial.print(" 0>");
   } else if(active && signal>0.99){
     active=false;
   }

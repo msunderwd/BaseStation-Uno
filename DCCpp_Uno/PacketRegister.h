@@ -23,7 +23,7 @@ struct Packet{
 }; // Packet
 
 struct Register{
-  byte cab[2];
+  byte cab[2];           // Added to store the cab address in the register for reverse lookups
   Packet packet[2];
   Packet *activePacket;
   Packet *updatePacket;

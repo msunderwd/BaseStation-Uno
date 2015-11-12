@@ -17,6 +17,7 @@ Part of DCC++ BASE STATION for the Arduino Uno
 #include "SerialCommand.h"
 #include "DCCpp_Uno.h"
 #include "Accessories.h"
+#include "Sensor.h"
 #include "Utils.h"
 extern int __heap_start, *__brkval;
 
@@ -155,6 +156,19 @@ void SerialCommand::parse(char *com){
  *   returns: <H ID THROW>
  */
       Turnout::parse(com+1);
+      break;
+
+/***** QUERY A SENSOR STATE  ****/    
+
+    case 'q':       // <q ID>
+/*
+ *   Queries the current state of a sensor.
+ *   
+ *   ID: the numeric ID (0-32767) of the sensor to query
+ *   
+ *   returns: <Q ID STATE>
+ */
+      Sensor::parse(com+1);
       break;
 
 /***** WRITE CONFIGURATION VARIABLE BYTE TO ENGINE DECODER ON MAIN OPERATIONS TRACK  ****/    

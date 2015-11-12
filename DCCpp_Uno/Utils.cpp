@@ -19,12 +19,13 @@ extern bool use_ethernet;
 extern EthernetPort ethernetPort;
 #endif
 
+// Send a reply message to ALL of the open ports.
+// 
+// Supports: Serial, Ethernet
 void sendReply(String buf) {
   Serial.print(buf);
-#ifdef USE_ETHERNET
-  if (use_ethernet) {
-    ethernetPort.sendReply(buf);
-  }
+#if (USE_ETHERNET > 0)
+  ethernetPort.sendReply(buf);
 #endif
 }
 

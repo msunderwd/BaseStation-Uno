@@ -16,6 +16,8 @@ Part of DCC++ BASE STATION for the Arduino Uno
 
 struct Sensor{
   static int nSensors;
+  static void parse(char *s);  // Parse a Query Sensor State command
+  static Sensor *get(int);     // Get a pointer ot a specific sensor
   int pin;
   int snum;
   boolean active;

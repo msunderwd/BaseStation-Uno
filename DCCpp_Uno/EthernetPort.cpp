@@ -7,6 +7,14 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 
 **********************************************************************/
 
+//#include <DhcpV2_0.h>
+#include <EthernetV2_0.h>
+#include <EthernetClientV2_0.h>
+#include <EthernetUdpV2_0.h>
+
+#include "DCCpp_Uno.h"
+#include "SerialCommand.h"
+#include "Accessories.h"
 #include "EthernetPort.h"
 #include <SPI.h>
 #if (USE_BONJOUR > 0)
@@ -16,20 +24,28 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 char commandString[MAX_COMMAND_LENGTH+1];
 
 // TODO: Use real MAC Address
+// This will have to be edited by the user to match their
+// Ethernet shield's MAC Address.
+// Candidate for a new serial interface command.
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 // TODO: Replace this with DHCP setup if possible
+// This would also have to be edited by the user.
+// Or configured at runtime somehow.
 IPAddress ip(192,168,2,27);
-IPAddress myDns(192,168,1,1);
-IPAddress gateway(192,168,1,1);
+IPAddress myDns(192,168,2,1);
+IPAddress gateway(192,168,2,1);
 IPAddress subnet(255,255,255,0);
-//const int port_no = 1235; // Make this configurable?
-const int port_no = 80;
+const int port_no = 1235; // Make this configurable?
+//const int port_no = 23;
 
+// Global variables
 EthernetServer server(port_no);
 EthernetClient client;
 bool alreadyConnected = false;
 int dhcp_loop_count = 0;
 
+// TCP Message start flags.  These must come before
+// the opening bracket of the DCC++ message.
 const String SEND_START_FLAG = "SEND";
 const String RECV_START_FLAG = "RECEIVE";
 
@@ -38,6 +54,7 @@ void EthernetPort::initialize() {
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
 
+  // Create the TCP port.
 #if (USE_DHCP > 0)
   Ethernet.begin(mac);
   #if (USE_SERIAL_DEBUG)
@@ -50,6 +67,7 @@ void EthernetPort::initialize() {
   #endif
 #endif
 
+  // Start the server.
   dhcp_loop_count = 0;
   server.begin();
   Serial.print("My Address = ");
@@ -60,10 +78,11 @@ void EthernetPort::initialize() {
   }
   Serial.println();
 
+  // If Bonjour is enabled, register the service.
 #if (USE_BONJOUR > 0)
   EthernetBonjour.begin("withrottle_server");
   
-  int retv = EthernetBonjour.addServiceRecord("DCCpp Base Station Server._withrottle._tcp.", port_no, MDNSServiceTCP);
+  int retv = EthernetBonjour.addServiceRecord("my application._telnet._tcp.", port_no, MDNSServiceTCP);
   if (retv == 0) {
 #if (USE_SERIAL_DEBUG)
     Serial.println("Bonjour Service Failed " + String(retv));
@@ -79,64 +98,69 @@ void EthernetPort::initialize() {
 
 void EthernetPort::process(void) {
 
+  
 #if (USE_BONJOUR)
+  // If Bonjouris enabled, we need to run it every loop.
   EthernetBonjour.run();
-#endif
+#endif  
 
+  // Check to see if there is a client with data for us.
   client = server.available();
   String buffer = String("");
   
+  // If so, process the message.
   if (client) {
-    //Serial.println("DCC++ Arduino DCCppOverTCP Server");
-    //Serial.print("Local IP Address:");
-    //Serial.println("Data Received");
-    // Xmit welcome message on connect
-    /*
-    if (!alreadyConnected) {
-      client.flush();
-      Serial.println("DCC++ Arduino DCCppOverTCP Server");
-      Serial.print("Local IP Address:");
-      Serial.println(Ethernet.localIP());
-      alreadyConnected = true;
-    }
-    */
-    // Receive
+    // Pull in all of the bytes and create
+    // a DCC++ command from them.
     while (client.available() > 0) {
       char thisChar = client.read();
       Serial.print(thisChar);
       if (thisChar == '>') {
+
+	// We found the end bracket. Process the message.
 	buffer += thisChar;
 	if (this->parse_dccpptcp(buffer)) {
 	  // Valid message received. Forward it to serial parser
 	  buffer.toCharArray(commandString, MAX_COMMAND_LENGTH+1);
 	  Serial.println("Received:" + buffer);
+
+	  // Use the SerialCommand parser to handle the actual message.
 	  SerialCommand::parse(commandString);
 	} 
-	break;
+	break;  // Get out of the while() loop.  The message is complete.
       } else {
+	// No end bracket yet. Keep pulling in bytes.
 	buffer += thisChar;
       }
     }
   }
+
+  // If DHCP is enabled, we need to periodically poll the server.
+  // This can be low bandwidth, thus the interval count before calling it.
+#if (USE_DHCP > 0)
   dhcp_loop_count++;
   if (dhcp_loop_count == DHCP_POLL_INTERVAL) {
     // TODO: Handle DHCP failures more robustly than "not at all"
-#if (USE_DHCP > 0)
    Ethernet.maintain();
-#endif
+   dhcp_loop_count = 0;
+
   }
+#endif
 }
 
+// Wrap a reply for TCP and forward it to the client.
 void EthernetPort::sendReply(String buf) {
+#if (USE_SERIAL_DEBUG > 0)
   Serial.println("TCP Reply Buf: " + buf);
+#endif
   if (client != NULL) {
     client.println("RECEIVE" + buf);
   }
 }
 
+// Check for a valid TCP message.
 bool EthernetPort::parse_dccpptcp(String&s) {
   char *retv;
-  Serial.println("Parser: " + s);
   if (s.startsWith(SEND_START_FLAG) || s.startsWith(RECV_START_FLAG)) {
     s = s.substring(s.indexOf('<')+1, s.lastIndexOf('>'));
     return(true);

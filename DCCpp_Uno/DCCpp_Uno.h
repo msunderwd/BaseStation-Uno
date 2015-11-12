@@ -12,13 +12,14 @@ Part of DCC++ BASE STATION for the Arduino Uno
 
 #define  BASE_STATION_VERSION  "UNO_1.0"
 
-// Enable/Disable Features
+// Enable/Disable Ethernet Features
 
-#define USE_ETHERNET 1
-#define USE_DHCP 1
-#define USE_BONJOUR 0
-#define DHCP_POLL_INTERVAL 10
-#define USE_SERIAL_DEBUG 1
+#define USE_ETHERNET 0         // Compile in and Enable support for TCP connections
+#define USE_DHCP 0             // Compile in and Enable support for DHCP
+#define USE_BONJOUR 0          // Compile in and Enable support for Bonjour/Zeroconf
+#define DHCP_POLL_INTERVAL 10  // Polling interval for DHCP service
+#define USE_SERIAL_DEBUG 1     // Dump TCP debug messages to the serial port. Not necessarily a good idea if
+                               // serial commands/replies are also expected.
 
 // Define the Arduino Pins that control various functions
 

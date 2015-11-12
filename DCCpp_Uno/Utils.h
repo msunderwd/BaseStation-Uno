@@ -12,6 +12,6 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 
 extern String reply_buffer;
 
-void sendReply(String buf);
+void sendReply(String buf); // Send a reply message to ALL open ports.
 
 #endif // UTILS_H
