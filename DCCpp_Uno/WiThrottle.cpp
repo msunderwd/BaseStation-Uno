@@ -9,6 +9,7 @@ Part of DCC++ BASE STATION for the Arduino Uno by Gregg E. Berman
 
 #include "WiThrottle.h"
 #include "PacketRegister.h"
+#include "Accessories.h"
 #include <SPI.h>
 
 // TODO: Use real MAC Address
@@ -23,6 +24,13 @@ const String newLine = "\n";
 const String VersionNumber = "2.0";
 const int pulseInterval = 16; // 16 seconds till disconnect on heartbeat fail
 WiThrottleClient c;
+
+#if (COMM_TYPE == 1)
+  EthernetClient en_client  = INTERFACE.available();
+#else
+#define en_client Serial
+#endif
+
 
 Loco::Loco(String addr) {
   address = addr;
@@ -85,13 +93,10 @@ Loco *Throttle::addLoco(String addr) {
 }
 
 Loco *Throttle::getLoco(String addr) {
-  //Serial.println("Looking for " + addr);
-  //Serial.println("num_locos (get) = " + String(num_locos));
   if (num_locos == 0) { return(addLoco(addr)); } // no locos
   Loco *t = locos;
   while ((t != NULL) && (t->address != addr)) {
     t = t->next;
-    //Serial.println("Address: " + t->address);
   }
   if (t == NULL) { return(addLoco(addr)); } // not found
   else {
@@ -250,7 +255,7 @@ void Throttle::sendReply(char prefix, String key, String action) {
   reply += key;
   reply += "<;>";
   reply += action;
-  Serial.println(reply);
+  en_client.println(reply);
   // Do something.
 }
 
@@ -351,11 +356,6 @@ void WiThrottle::initialize(volatile RegisterList *l) {
 
 void WiThrottle::process(void) {
   int client_num = -1;
-#if (COMM_TYPE == 1)
-  EthernetClient en_client  = INTERFACE.available();
-#else
-#define en_client Serial
-#endif
 
   String buffer = String("");
   
@@ -363,8 +363,6 @@ void WiThrottle::process(void) {
     // Xmit welcome message on connect
     if (!alreadyConnected) {
       en_client.flush();
-      en_client.println("VN" + VersionNumber); // Version #
-      en_client.println("PW" + String(port_no)); // Web server Port #
       alreadyConnected = true;
     }
 
@@ -392,9 +390,9 @@ void WiThrottle::process(void) {
   }
 }
 
-bool WiThrottle::parse(WiThrottleClient *c, String& s) {
-  return this->parse(s);
-}
+  bool WiThrottle::parse(WiThrottleClient *c, String& s) {
+    return this->parse(s);
+  }
 
  bool WiThrottle::parse(String& s) {
    Throttle *t;
@@ -409,36 +407,42 @@ bool WiThrottle::parse(WiThrottleClient *c, String& s) {
        c.throttles->takeAction(s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
      }
      break;
+
    case 'S':
      // Second Throttle Command (effectively obsolete)
      if ((c.num_throttles > 1) && (c.throttles+1 != NULL)) {
        (c.throttles+1)->takeAction(s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
      }
      break;
+
    case 'M':
      // Multi Throttle Command
      switch(s.charAt(2)) {  // Second char is an OpCode, sort of. More of a Selector
-       
      case '+':
        // Add a loco to throttle # id
        addMultiThrottleLoco(c, s.charAt(1), s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
        break;
+
      case '-':
        // Remove a loco from throttle # id
        removeMultiThrottleLoco(c, s.charAt(1), s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
        break;
+
      case 'A':
        // Loco Action
        doMultiThrottleLocoAction(c, s.charAt(1),s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
        break;
+
      default:
        // Invalid char. Do nothing.
        return false;
-     }
+     } // switch
      break;
+
    case 'D':
      // Direct command
      break;
+
    case '*':
      // Heartbeat
      if (s.length() > 1) {
@@ -458,6 +462,7 @@ bool WiThrottle::parse(WiThrottleClient *c, String& s) {
    case 'N':
      // Device Name
      c.name = s.substring(1);
+     sendIntroMessage();
      c.sendReply("*" + String(pulseInterval));
      break;
      
@@ -482,7 +487,7 @@ bool WiThrottle::parse(WiThrottleClient *c, String& s) {
        break;
      case 'T':
        // Turnout
-       //this->handleTurnoutMsg(s.substring(2));
+       this->handleTurnoutMsg(s.substring(2));
        break;
      case 'R':
        // Routes not supported.
@@ -500,6 +505,39 @@ bool WiThrottle::parse(WiThrottleClient *c, String& s) {
      
    }
    return true;
+ }
+
+ void WiThrottle::sendIntroMessage(void) {
+   String msg;
+   // Send version
+   en_client.println("VN" + VersionNumber); // Version #
+   // Send port #
+   en_client.println("PW" + String(port_no)); // Web server Port #
+   // Send power state
+   if (digitalRead(SIGNAL_ENABLE_PIN_MAIN)) {
+     en_client.println("PPA1");
+   } else {
+     en_client.println("PPA0");
+   }
+   // Send Turnout titles and state
+   msg = "PTT]\\[Turnouts}|{Turnout]\\[Closed]|{2]\\[Thrown}|{4";
+   en_client.println(msg);
+   Turnout *tt = Turnout::firstTurnout;
+   en_client.print("PTL");
+   while(tt != NULL) {
+     msg = "]\\[";
+     msg += tt->data.id;
+     msg += "}|{";
+     if (tt->data.tStatus == 1) {
+       msg += "1";
+     } else {
+       msg += "0";
+     }
+     en_client.print(msg);
+     tt = tt->nextTurnout;
+   }
+   en_client.println("");
+   // Send Route titles and state (LOL J/K)
  }
 
 void WiThrottle::startEKG(void) {
@@ -530,6 +568,40 @@ void WiThrottle::stopEKG(void) {
   }
   // No response to client.
 }
+
+ void WiThrottle::handleTurnoutMsg(String s) {
+   int id;
+   Turnout *t;
+   String msg;
+   if (s.charAt(0) == 'A') {
+     id = s.substring(2).toInt();
+     t = Turnout::get(s.substring(2).toInt());
+     if (t != NULL) {
+       switch(s.charAt(1)) {
+       case '2': // Toggle
+	 if (t->data.tStatus == 0) {
+	   t->activate(1);
+	 } else {
+	   t->activate(0);
+	 }
+	 break;
+       case 'C': // Close
+	 t->activate(0);
+	 break;
+       case 'T': // Throw
+	 t->activate(1);
+	 break;
+       default:
+	 Serial.println("Invalid Turnout Message: " + s);
+	 break;
+       } // switch
+       msg = "PTA";
+       msg += (t->data.tStatus == 0 ? '2' : '4');
+       msg += t->data.id;
+       en_client.println(msg);
+     } // if !NULL
+   } // if 'A'
+ }
 
  void WiThrottle::addMultiThrottleLoco(WiThrottleClient &c, char id, String key, String action) {
    // Do something.

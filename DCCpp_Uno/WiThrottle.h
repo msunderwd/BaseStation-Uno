@@ -190,6 +190,8 @@ class WiThrottle {
   void initialize(volatile RegisterList *l);
   void process();
   void sendReply(String buf);
+  void sendIntroMessage(void);
+
   }; // WiThrottle
 
 #endif // WiThrottle_h
