@@ -161,6 +161,7 @@ DCC++ BASE STATION in split into multiple modules, each with its own header file
 #include "EEStore.h"
 #include <EEPROM.h>
 #include "Config.h"
+#include "WiThrottle.h"
 #include <SPI.h>
 #include <EthernetV2_0.h>
 
@@ -180,6 +181,10 @@ volatile RegisterList progRegs(2);                     // create a shorter list 
 CurrentMonitor mainMonitor(CURRENT_MONITOR_PIN_MAIN,"<p2>");  // create monitor for current on Main Track
 CurrentMonitor progMonitor(CURRENT_MONITOR_PIN_PROG,"<p3>");  // create monitor for current on Program Track
 
+#if (WITHROTTLE == 1)
+WiThrottle wiThrottleServer;
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 // MAIN ARDUINO LOOP
 ///////////////////////////////////////////////////////////////////////////////
@@ -194,6 +199,10 @@ void loop(){
   }
 
   Sensor::check();    // check sensors for activate/de-activate
+
+#if (WITHROTTLE)
+//  wiThrottleServer.process();
+#endif
   
 } // loop
 
@@ -211,13 +220,21 @@ void setup(){
     digitalWrite(SDCARD_CS,HIGH);     // Deselect the SD card
   #endif
 
+  Serial.println("Starting up...");
+
   #if COMM_TYPE == 1
     Ethernet.begin(mac);                      // Start networking using DHCP to get an IP Address
     INTERFACE.begin();
   #endif
+
+  Serial.println("Ethernet alive...");
              
   SerialCommand::init(&mainRegs, &progRegs, &mainMonitor);   // create structure to read and parse commands from serial line
 
+  #if (WITHROTTLE == 1)
+    wiThrottleServer.initialize(&mainRegs);
+  #endif
+  
   EEStore::init();                                           // initialize and load Turnout and Sensor definitions stored in EEPROM  FIX THIS!!!!!!!!
 
   Serial.print("<iDCC++ BASE STATION FOR ARDUINO ");      // Print Status to Serial Line regardless of COMM_TYPE setting so use can open Serial Monitor and check configurtion 

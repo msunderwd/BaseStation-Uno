@@ -19,6 +19,7 @@ Part of DCC++ BASE STATION for the Arduino Uno
 #include "Accessories.h"
 #include "Sensor.h"
 #include "EEStore.h"
+#include "WiThrottle.h"
 #include "Comm.h"
 
 extern int __heap_start, *__brkval;
@@ -29,6 +30,10 @@ char SerialCommand::commandString[MAX_COMMAND_LENGTH+1];
 volatile RegisterList *SerialCommand::mRegs;
 volatile RegisterList *SerialCommand::pRegs;
 CurrentMonitor *SerialCommand::mMonitor;
+WiThrottle wiThrottle;
+extern WiThrottle wiThrottleServer;
+String buf1, buf2;
+boolean readingDCCpp, readingWiThrottle, endingDCCpp;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -37,24 +42,52 @@ void SerialCommand::init(volatile RegisterList *_mRegs, volatile RegisterList *_
   pRegs=_pRegs;
   mMonitor=_mMonitor;
   sprintf(commandString,"");
+  buf1 = ""; buf2 = "";
+  readingDCCpp = false;
+  readingWiThrottle = false;
+  endingDCCpp = false;
 } // SerialCommand:SerialCommand
 
 ///////////////////////////////////////////////////////////////////////////////
 
 void SerialCommand::process(){
   char c;
-    
+  
   #if COMM_TYPE == 0
 
-    while(INTERFACE.available()>0){    // while there is data on the serial line
-     c=INTERFACE.read();
-     if(c=='<')                    // start of new command
-       sprintf(commandString,"");
-     else if(c=='>')               // end of new command
-       parse(commandString);                    
-     else if(strlen(commandString)<MAX_COMMAND_LENGTH)    // if comandString still has space, append character just read from serial line
-       sprintf(commandString,"%s%c",commandString,c);     // otherwise, character is ignored (but continue to look for '<' or '>')
-    } // while
+  while(INTERFACE.available()>0){    // while there is data on the serial line
+    c=INTERFACE.read();
+    
+    if (!readingWiThrottle) {
+      if(c=='<') {                   // start of new command
+	readingDCCpp = true;
+	sprintf(commandString,"");
+      } else if(c=='>') {              // end of new command
+	parse(commandString);                    
+	readingDCCpp = false;
+	endingDCCpp = true;
+      } else if(strlen(commandString)<MAX_COMMAND_LENGTH) {    // if comandString still has space, append character just read from serial line
+	sprintf(commandString,"%s%c",commandString,c);     // otherwise, character is ignored (but continue to look for '<' or '>')
+      }
+    }
+    
+    if (!readingDCCpp) {
+      
+      if (endingDCCpp && (c == '>')) {
+	endingDCCpp = false;
+      } else if ((c == '\n') && !endingDCCpp && (buf1.length() > 0)) {
+	buf2 = buf1;
+	Serial.println("caught message " + buf2);
+	readingWiThrottle = false;
+	buf1 = "";
+	wiThrottleServer.parse(buf2);
+      } else if (!endingDCCpp) {
+	readingWiThrottle = true;
+	buf1 += c;
+	Serial.print('.');
+      }
+    }
+  } // while
   
   #elif COMM_TYPE == 1
 
@@ -79,6 +112,8 @@ void SerialCommand::process(){
 ///////////////////////////////////////////////////////////////////////////////
 
 void SerialCommand::parse(char *com){
+  Serial.print("Serial parsing: ");
+  Serial.println(com);
   
   switch(com[0]){
 
