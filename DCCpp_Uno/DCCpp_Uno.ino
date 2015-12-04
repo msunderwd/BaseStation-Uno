@@ -201,7 +201,7 @@ void loop(){
   Sensor::check();    // check sensors for activate/de-activate
 
 #if (WITHROTTLE)
-//  wiThrottleServer.process();
+  wiThrottleServer.process();
 #endif
   
 } // loop

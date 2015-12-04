@@ -31,6 +31,12 @@ WiThrottleClient c;
 #define en_client Serial
 #endif
 
+// WiThrottle Heartbeat Timer info
+#define SECONDS_TO_DISCONNECT 16
+#define MILLIS 1000
+unsigned long last_heartbeat;
+boolean heartbeat = false;
+boolean heartbeatEnabled = false;
 
 Loco::Loco(String addr) {
   address = addr;
@@ -140,6 +146,14 @@ void Throttle::takeAction(String addr, String action) {
     takeAction(getLoco(addr), action);
   }
 }
+
+/** Throttle::takeAction()
+ *
+ * Handles velocity, function, etc.
+ *
+ * Generates an equivalent <t...> or <f...> serial command
+ * and runs it through SerialCommand::parse().
+ */
 void Throttle::takeAction(Loco *l, String action) {
   char cmdbuf[50];
   String cmd = "";
@@ -158,10 +172,13 @@ void Throttle::takeAction(Loco *l, String action) {
       break;
 
     case 'X': // Emergency Stop
+      cmd = "t "; 
+      cmd += String(int(l->reg));
+      cmd += " " + l->addressnum() + " -1 1";
       Serial.println("cmd = " + cmd);
       cmd.toCharArray(cmdbuf, 50);
       SerialCommand::parse(cmdbuf);
-      sendReply('A', l->address, String("V") + String(l->speedval));
+      sendReply('A', l->address, String("V0"));
       break;
 
     case 'F': // function
@@ -203,6 +220,7 @@ void Throttle::takeAction(Loco *l, String action) {
       break;
 
     case 'C': // Consist functions
+      // Consist functions not supported (for now)
       break;
 
     case 'I': // idle
@@ -355,6 +373,9 @@ void WiThrottle::initialize(volatile RegisterList *l) {
 }
 
 void WiThrottle::process(void) {
+
+  handleHeartbeat();
+  /*
   int client_num = -1;
 
   String buffer = String("");
@@ -388,7 +409,38 @@ void WiThrottle::process(void) {
       }
     }
   }
+  */
 }
+
+  void WiThrottle::handleHeartbeat(void) {
+    unsigned long this_heartbeat = millis();
+    unsigned long delta;
+    if (c.usingHeartbeat) {
+      // All is well. We had some kind of contact.
+      c.last_heartbeat = this_heartbeat;
+    } else {
+      // Have we had a timeout?
+      if (this_heartbeat < last_heartbeat) {
+	// We've had a wrap event.  Do the math.
+	// This will happen once every 50 days or so.
+	delta = (0xFFFFFFFF - this_heartbeat) + c.last_heartbeat;
+      } else {
+	// Normal timeout, no wraparound
+	delta = this_heartbeat - c.last_heartbeat;
+      }
+      if (delta > (SECONDS_TO_DISCONNECT * MILLIS)) {
+	// Boom!  We've had a timeout. E-Stop everything.
+	Serial.println("Heartbeat Failed!");
+	for (int i = 0; i < c.num_throttles; i++) {
+	  for (int j = 0; j < c.throttles[i].num_locos; j++) {
+	    c.throttles[i].takeAction(c.throttles[i].locos[j].address, "X");
+	  } // for locos
+	} // for throttles
+      } // if timeout
+    } // if heartbeat else
+    c.usingHeartbeat = false;
+  }
+
 
   bool WiThrottle::parse(WiThrottleClient *c, String& s) {
     return this->parse(s);
@@ -399,19 +451,66 @@ void WiThrottle::process(void) {
    Serial.println("WTS parsing: " + s);
    // This is more of a "handle" than just a "parse", but...
    s.trim(); // Drop leading and trailing whitespace.
-   switch(s[0]) {
-   case 'C': // Treat 'C' just like 'T'
+   heartbeat = true;
+   switch(s.charAt(0)) {
    case 'T':
-     // Throttle command (effectively obsolete)
-     if ((c.num_throttles > 0) && (c.throttles != NULL)) {
-       c.throttles->takeAction(s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
+     switch(s.charAt(1)) {
+     case 'L':
+     case 'S':
+       t = c.getThrottle('T');
+       if (t != NULL) {
+	 t->releaseLoco(s.substring(2));
+	 t->getLoco(s.substring(2));
+       }
+       break;
+     default:
+       t = c.getThrottle('T');
+       if (t != NULL) {
+	 t->takeAction(c.throttles->locos->address, s.substring(1));
+       }
+       break;
      }
      break;
 
    case 'S':
      // Second Throttle Command (effectively obsolete)
-     if ((c.num_throttles > 1) && (c.throttles+1 != NULL)) {
-       (c.throttles+1)->takeAction(s.substring(3, s.indexOf('<')), s.substring(s.indexOf('>')+1));
+     // NOTE: Does not auto-create throttle (which it should!)
+     switch(s.charAt(1)) {
+     case 'L':
+     case 'S':
+       t = c.getThrottle('S');
+       if (t != NULL) {
+	 t->releaseLoco(s.substring(2));
+	 t->getLoco(s.substring(2));
+       }
+       break;
+     default:
+       t = c.getThrottle('T');
+       if (t != NULL) {
+	 t->takeAction(c.throttles->locos->address, s.substring(1));
+       }
+       break;
+     }
+     break;
+
+   case 'C': // Treat 'C' just like 'T'
+     if (s.charAt(1) == 'T') {
+       switch(s.charAt(2)) {
+       case 'L':
+       case 'S':
+	t = c.getThrottle('S');
+	 if (t != NULL) {
+	   t->releaseLoco(s.substring(3));
+	   t->getLoco(s.substring(3));
+	 }
+	 break;
+       default:
+	 t = c.getThrottle('T');
+	 if (t != NULL) {
+	   t->takeAction(c.throttles->locos->address, s.substring(2));
+	 }
+	 break;
+       }
      }
      break;
 
@@ -495,10 +594,11 @@ void WiThrottle::process(void) {
      }
      break;
    case 'R':
-     // Roster
+     // Roster - Not supported.
      break;
    case 'Q':
      // Quit - remove this client from the list?
+     c.releaseAllThrottles();
      break;
    default:
      return false;
@@ -542,16 +642,21 @@ void WiThrottle::process(void) {
 
 void WiThrottle::startEKG(void) {
   // This needs to start a timer somehow.
+  c.usingHeartbeat = true;
 }
 
 void WiThrottle::stopEKG(void) {
   // This needs to stop the timer somehow.
+  c.usingHeartbeat = false;
 }
 
 /** 
- * handleTrackPowerMsg()
+ * WiThrottle::handleTrackPowerMsg()
  *
  * Turns power to the track on and off.
+ *
+ * Use SerialCommand::parse() to make sure we do
+ * the same thing as the serial port code does.
  */
  void WiThrottle::handleTrackPowerMsg(String s) {
   if (s[0] == 'A') {
@@ -569,6 +674,17 @@ void WiThrottle::stopEKG(void) {
   // No response to client.
 }
 
+ /**
+  * WiThrottle::handleTurnoutMsg(String s)
+  *
+  * Triggers turnouts as needed.
+  *
+  * This directly calls the Turnout::activate() function for
+  * "same as serial" functionality
+  *
+  * Note that the Turnout::activate() actually generates
+  * an <a ...> serial message and calls SerialCommand::parse() itself.
+  */
  void WiThrottle::handleTurnoutMsg(String s) {
    int id;
    Turnout *t;
@@ -670,59 +786,6 @@ void WiThrottle::stopEKG(void) {
    
  }
 
-
-void WiThrottle::setAddress(WiThrottleClient &c, int t, String addr) {
-  // Assign the address to the wi_client
-  Loco *l = c.throttles[t].getLoco(addr);
-  if (l == NULL) { return; }
-
-  l->address = addr;
-
-  // Try to get a register
-  //c.throttles[t].reg = _regs->getRegisterByAddr(addr);
-  if (l->reg == -1) {
-    // No register with this address.  Allocate a new one
-    // by sending an "Idle" command to the address.
-    //c.throttles[t].reg = _regs->getEmptyRegister();
-    String cmd = String("");
-    cmd += l->reg;
-    cmd += " ";
-    cmd += addr;
-    cmd += " ";
-    cmd += "0 1";
-    cmd.toCharArray(commandString, MAX_COMMAND_LENGTH+1);
-    //_regs->setThrottle(commandString);
-    l->speedval = 0;
-    l->dir = true;
-  }
-}
-
-void WiThrottle::setSpeed(WiThrottleClient &c, int t, int speed) {
-  Loco *l = &(c.throttles[t].locos[0]);
-  if (l != NULL) {l->speedval = speed; }
-}
-
-void WiThrottle::setDirection(WiThrottleClient &c, int t, int dir) {
-  Loco *l = &(c.throttles[t].locos[0]);
-  if (l != NULL) { l->dir = (dir == 1); }
-}
-void WiThrottle::sendSpeedAndDirCmd(WiThrottleClient &c, int t) {
-  Loco *l = &(c.throttles[t].locos[0]);
-  if (l == NULL) { return; }
-
-  
-  String cmd = String("<T");
-  cmd += l->reg; // TODO
-  cmd += " ";
-  cmd += l->address;
-  cmd += " ";
-  cmd += l->adjustedSpeed();
-  cmd += " ";
-  cmd += l->dir ? 1 : 0;
-  cmd += ">";
-  cmd.toCharArray(commandString, MAX_COMMAND_LENGTH+1);
-  _regs->setThrottle(commandString);
-}
 
 /*
 //WiThrottleClient *WiThrottle::getClient(EthernetClient &ec) {

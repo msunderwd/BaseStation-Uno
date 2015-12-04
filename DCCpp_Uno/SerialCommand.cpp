@@ -34,6 +34,8 @@ WiThrottle wiThrottle;
 extern WiThrottle wiThrottleServer;
 String buf1, buf2;
 boolean readingDCCpp, readingWiThrottle, endingDCCpp;
+enum ReadState {IDLE, READING_DCCPP, READING_WITHROTTLE };
+ReadState readState = IDLE;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -46,6 +48,7 @@ void SerialCommand::init(volatile RegisterList *_mRegs, volatile RegisterList *_
   readingDCCpp = false;
   readingWiThrottle = false;
   endingDCCpp = false;
+  readState = IDLE;
 } // SerialCommand:SerialCommand
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -57,34 +60,37 @@ void SerialCommand::process(){
 
   while(INTERFACE.available()>0){    // while there is data on the serial line
     c=INTERFACE.read();
-    
-    if (!readingWiThrottle) {
-      if(c=='<') {                   // start of new command
-	readingDCCpp = true;
-	sprintf(commandString,"");
-      } else if(c=='>') {              // end of new command
-	parse(commandString);                    
-	readingDCCpp = false;
-	endingDCCpp = true;
-      } else if(strlen(commandString)<MAX_COMMAND_LENGTH) {    // if comandString still has space, append character just read from serial line
-	sprintf(commandString,"%s%c",commandString,c);     // otherwise, character is ignored (but continue to look for '<' or '>')
+
+    switch(readState) {
+    case IDLE:
+      if (c == '<') {
+	readState = READING_DCCPP;
+	sprintf(commandString, "");
+	//Serial.print("Starting Serial"); // Debug. Remove later.
+      } else if ((c != -1) && (c != '\n')) {
+	readState = READING_WITHROTTLE;
+	buf1 += c;
+	//Serial.print('.'); // Debug. Remove later.
       }
-    }
-    
-    if (!readingDCCpp) {
-      
-      if (endingDCCpp && (c == '>')) {
-	endingDCCpp = false;
-      } else if ((c == '\n') && !endingDCCpp && (buf1.length() > 0)) {
+      break;
+    case READING_DCCPP:
+      if (c == '>') {
+	readState = IDLE;
+	parse(commandString);
+      } else if (strlen(commandString) < MAX_COMMAND_LENGTH) {
+	sprintf(commandString, "%s%c",commandString,c);
+      }
+      break;
+    case READING_WITHROTTLE:
+      if (c == '\n') {
 	buf2 = buf1;
-	Serial.println("caught message " + buf2);
-	readingWiThrottle = false;
+	//Serial.println("caught message " + buf2); // Debug. Remove later.
 	buf1 = "";
 	wiThrottleServer.parse(buf2);
-      } else if (!endingDCCpp) {
-	readingWiThrottle = true;
+	readState = IDLE;
+      } else if (c != -1) {
 	buf1 += c;
-	Serial.print('.');
+	//Serial.print('.'); // Debug. Remove later.
       }
     }
   } // while

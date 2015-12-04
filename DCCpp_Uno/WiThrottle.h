@@ -149,6 +149,7 @@ public:
   byte num_throttles;
   boolean alreadyConnected;
   boolean usingHeartbeat;
+  unsigned long last_heartbeat;
   Throttle *addThrottle(char id);
   Throttle *getThrottle(char id);
   void releaseThrottle(char id);
@@ -191,6 +192,7 @@ class WiThrottle {
   void process();
   void sendReply(String buf);
   void sendIntroMessage(void);
+  void handleHeartbeat(void);
 
   }; // WiThrottle
 
