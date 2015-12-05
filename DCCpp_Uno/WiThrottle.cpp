@@ -415,30 +415,34 @@ void WiThrottle::process(void) {
   void WiThrottle::handleHeartbeat(void) {
     unsigned long this_heartbeat = millis();
     unsigned long delta;
-    if (c.usingHeartbeat) {
-      // All is well. We had some kind of contact.
-      c.last_heartbeat = this_heartbeat;
-    } else {
-      // Have we had a timeout?
-      if (this_heartbeat < last_heartbeat) {
-	// We've had a wrap event.  Do the math.
-	// This will happen once every 50 days or so.
-	delta = (0xFFFFFFFF - this_heartbeat) + c.last_heartbeat;
+    if (heartbeatEnabled) {
+      if (heartbeat) {
+	// All is well. We had some kind of contact.
+	c.last_heartbeat = this_heartbeat;
+	delta = 0;
       } else {
-	// Normal timeout, no wraparound
-	delta = this_heartbeat - c.last_heartbeat;
-      }
-      if (delta > (SECONDS_TO_DISCONNECT * MILLIS)) {
-	// Boom!  We've had a timeout. E-Stop everything.
-	Serial.println("Heartbeat Failed!");
-	for (int i = 0; i < c.num_throttles; i++) {
-	  for (int j = 0; j < c.throttles[i].num_locos; j++) {
-	    c.throttles[i].takeAction(c.throttles[i].locos[j].address, "X");
-	  } // for locos
-	} // for throttles
-      } // if timeout
-    } // if heartbeat else
-    c.usingHeartbeat = false;
+	// Have we had a timeout?
+	if (this_heartbeat < last_heartbeat) {
+	  // We've had a wrap event.  Do the math.
+	  // This will happen once every 50 days or so.
+	  delta = (0xFFFFFFFF - this_heartbeat) + c.last_heartbeat;
+	} else {
+	  // Normal timeout, no wraparound
+	  delta = this_heartbeat - c.last_heartbeat;
+	}
+	if (delta > (SECONDS_TO_DISCONNECT * MILLIS)) {
+	  // Boom!  We've had a timeout. E-Stop everything.
+	  Serial.println("Heartbeat Failed!");
+	  for (int i = 0; i < c.num_throttles; i++) {
+	    for (int j = 0; j < c.throttles[i].num_locos; j++) {
+	      c.throttles[i].takeAction(c.throttles[i].locos[j].address, "X");
+	    } // for locos
+	  } // for throttles
+	  heartbeatEnabled = false;
+	} // if timeout
+      } // if heartbeat else
+      heartbeat = false;
+    } // heartbeat enabled
   }
 
 
@@ -563,6 +567,7 @@ void WiThrottle::process(void) {
      c.name = s.substring(1);
      sendIntroMessage();
      c.sendReply("*" + String(pulseInterval));
+     heartbeatEnabled = true;
      break;
      
    case 'H':
@@ -643,11 +648,13 @@ void WiThrottle::process(void) {
 void WiThrottle::startEKG(void) {
   // This needs to start a timer somehow.
   c.usingHeartbeat = true;
+  heartbeatEnabled = true;
 }
 
 void WiThrottle::stopEKG(void) {
   // This needs to stop the timer somehow.
   c.usingHeartbeat = false;
+  heartbeatEnabled = false;
 }
 
 /** 

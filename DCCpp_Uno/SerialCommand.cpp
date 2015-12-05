@@ -56,67 +56,72 @@ void SerialCommand::init(volatile RegisterList *_mRegs, volatile RegisterList *_
 void SerialCommand::process(){
   char c;
   
-  #if COMM_TYPE == 0
-
+#if COMM_TYPE == 0
   while(INTERFACE.available()>0){    // while there is data on the serial line
-    c=INTERFACE.read();
-
-    switch(readState) {
-    case IDLE:
-      if (c == '<') {
-	readState = READING_DCCPP;
-	sprintf(commandString, "");
-	//Serial.print("Starting Serial"); // Debug. Remove later.
-      } else if ((c != -1) && (c != '\n')) {
-	readState = READING_WITHROTTLE;
-	buf1 += c;
-	//Serial.print('.'); // Debug. Remove later.
-      }
-      break;
-    case READING_DCCPP:
-      if (c == '>') {
-	readState = IDLE;
-	parse(commandString);
-      } else if (strlen(commandString) < MAX_COMMAND_LENGTH) {
-	sprintf(commandString, "%s%c",commandString,c);
-      }
-      break;
-    case READING_WITHROTTLE:
-      if (c == '\n') {
-	buf2 = buf1;
-	//Serial.println("caught message " + buf2); // Debug. Remove later.
-	buf1 = "";
-	wiThrottleServer.parse(buf2);
-	readState = IDLE;
-      } else if (c != -1) {
-	buf1 += c;
-	//Serial.print('.'); // Debug. Remove later.
-      }
-    }
+    doReadPort(INTERFACE.read());
   } // while
   
-  #elif COMM_TYPE == 1
-
-    EthernetClient client=INTERFACE.available();
-
-    if(client){
-      while(client.connected() && client.available()){        // while there is data on the network
-      c=client.read();
-      if(c=='<')                    // start of new command
-        sprintf(commandString,"");
-      else if(c=='>')               // end of new command
-        parse(commandString);                    
-      else if(strlen(commandString)<MAX_COMMAND_LENGTH)    // if comandString still has space, append character just read from network
-        sprintf(commandString,"%s%c",commandString,c);     // otherwise, character is ignored (but continue to look for '<' or '>')
-      } // while
-    }
-
-  #endif
-
+#elif COMM_TYPE == 1
+  
+  EthernetClient client = INTERFACE.available();
+  if (client) {
+    while (client.connected() && client.available()) {
+      doReadPort(client.read());
+    } // while
+  } // if
+#endif
+  
 } // SerialCommand:process
    
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+ * doReadPort()
+ *
+ * Common port read code that gets characters from the current port
+ *
+ * Called from process() and process() figures out which type of port
+ * (Serial or Ethernet) to read from, has the while() loop, and does
+ * the actual char read.  This is the "guts" of the command building and
+ * parsing/execution code.
+ */
+void SerialCommand::doReadPort(char c) {
+  
+  switch(readState) {
+  case IDLE:
+    if (c == '<') {
+      readState = READING_DCCPP;
+      sprintf(commandString, "");
+      //Serial.print("Starting Serial"); // Debug. Remove later.
+    } else if ((c != -1) && (c != '\n')) {
+      readState = READING_WITHROTTLE;
+      buf1 += c;
+      //Serial.print('.'); // Debug. Remove later.
+    }
+    break;
+  case READING_DCCPP:
+    if (c == '>') {
+      readState = IDLE;
+      parse(commandString);
+    } else if (strlen(commandString) < MAX_COMMAND_LENGTH) {
+      sprintf(commandString, "%s%c",commandString,c);
+    }
+    break;
+  case READING_WITHROTTLE:
+    if (c == '\n') {
+      buf2 = buf1;
+      //Serial.println("caught message " + buf2); // Debug. Remove later.
+      buf1 = "";
+      wiThrottleServer.parse(buf2);
+      readState = IDLE;
+    } else if (c != -1) {
+      buf1 += c;
+      //Serial.print('.'); // Debug. Remove later.
+    }
+  } // switch
+}
+
+///////////////////////////////////////////////////////////////////////////////
 void SerialCommand::parse(char *com){
   Serial.print("Serial parsing: ");
   Serial.println(com);
