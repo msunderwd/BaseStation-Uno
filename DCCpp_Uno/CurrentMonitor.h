@@ -3,7 +3,7 @@
 CurrentMonitor.h
 COPYRIGHT (c) 2013-2015 Gregg E. Berman
 
-Part of DCC++ BASE STATION for the Arduino Uno 
+Part of DCC++ BASE STATION for the Arduino
 
 **********************************************************************/
 
@@ -13,8 +13,13 @@ Part of DCC++ BASE STATION for the Arduino Uno
 #include "Arduino.h"
 
 #define  CURRENT_SAMPLE_SMOOTHING   0.01
-#define  CURRENT_SAMPLE_TIME        10
 #define  CURRENT_SAMPLE_MAX         300
+
+#ifdef ARDUINO_AVR_UNO                        // Configuration for UNO
+  #define  CURRENT_SAMPLE_TIME        10
+#else                                         // Configuration for MEGA    
+  #define  CURRENT_SAMPLE_TIME        1
+#endif
 
 struct CurrentMonitor{
   static long int sampleTime;

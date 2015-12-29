@@ -3,7 +3,7 @@
 CurrentMonitor.cpp
 COPYRIGHT (c) 2013-2015 Gregg E. Berman
 
-Part of DCC++ BASE STATION for the Arduino Uno 
+Part of DCC++ BASE STATION for the Arduino
 
 **********************************************************************/
 
@@ -22,7 +22,7 @@ CurrentMonitor::CurrentMonitor(int pin, char *msg){
 boolean CurrentMonitor::checkTime(){
   if(millis()-sampleTime<CURRENT_SAMPLE_TIME)            // no need to check current yet
     return(false);
-  sampleTime=millis();
+  sampleTime=millis();                                   // note millis() uses TIMER-0.  For UNO, we change the scale on Timer-0.  For MEGA we do not.  This means CURENT_SAMPLE_TIME is different for UNO then MEGA
   return(true);  
 } // CurrentMonitor::checkTime
   
