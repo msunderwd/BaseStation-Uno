@@ -238,19 +238,8 @@ void setup(){
 
   Serial.println("Starting up...");
 
-  #if COMM_TYPE == 1
-    Ethernet.begin(mac);                      // Start networking using DHCP to get an IP Address
-    INTERFACE.begin();
-  #endif
-
-  Serial.println("Ethernet alive...");
-             
   SerialCommand::init(&mainRegs, &progRegs, &mainMonitor);   // create structure to read and parse commands from serial line
 
-  #if (WITHROTTLE == 1)
-    wiThrottleServer.initialize(&mainRegs);
-  #endif
-  
   EEStore::init();                                           // initialize and load Turnout and Sensor definitions stored in EEPROM
 
   Serial.print("<iDCC++ BASE STATION FOR ARDUINO ");      // Print Status to Serial Line regardless of COMM_TYPE setting so use can open Serial Monitor and check configurtion 
@@ -268,8 +257,14 @@ void setup(){
     INTERFACE.begin();
   #endif
              
+  Serial.println("Ethernet alive...");
+             
   SerialCommand::init(&mainRegs, &progRegs, &mainMonitor);   // create structure to read and parse commands from serial line
 
+  #if (WITHROTTLE == 1)
+    wiThrottleServer.initialize(&mainRegs);
+  #endif
+  
   Serial.print("<N");
   Serial.print(COMM_TYPE);
   Serial.print(": ");
