@@ -66,8 +66,13 @@ Part of DCC++ BASE STATION for the Arduino
 //
 // ENABLE BONJOUR/ZEROCONF SUPPORT
 //
+// NOTE: You can set the name of your service here, but make sure it ends with
+// "._withrottle" or the WiThrottle app won't be able to find it.
+//
+// (if you know about Bonjour/Zeroconf names, this means "leave off the ._tcp.local" part)
 
 #define BONJOUR 0
+#define BONJOUR_NAME "DCCpp._withrottle"
 
 /////////////////////////////////////////////////////////////////////////////////////
 

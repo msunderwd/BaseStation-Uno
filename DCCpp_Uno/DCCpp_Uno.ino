@@ -188,9 +188,6 @@ void showConfiguration();
 #if COMM_TYPE == 1
   byte mac[] =  MAC_ADDRESS;                                // Create MAC address (to be used for DHCP when initializing server)
   EthernetServer INTERFACE(ETHERNET_PORT);                  // Create and instance of an EnternetServer
-#if (BONJOUR == 1)
-  const char bonjourname = "DCCpp._withrottle._tcp";  
-#endif
 #endif
 
 // NEXT DECLARE GLOBAL OBJECTS TO PROCESS AND STORE DCC PACKETS AND MONITOR TRACK CURRENTS.
@@ -266,7 +263,7 @@ void setup(){
     
     #if (BONJOUR == 1)
     EthernetBonjour.begin("arduino");
-    EthernetBonjour.addServiceRecord("DCCpp._withrottle", ETHERNET_PORT, MDNSServiceTCP, "jmri=4.5.7");
+    EthernetBonjour.addServiceRecord(BONJOUR_NAME, ETHERNET_PORT, MDNSServiceTCP, "jmri=4.5.7");
     #endif
   #endif
              
